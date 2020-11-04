@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define BUFSIZE 8096
 
@@ -185,6 +186,10 @@ void handle_socket(int fd)
 	exit(1);
 }
 
+void sigchld_handler(int s){
+	while(waitpid(-1,NULL,WNOHANG)>0);
+}
+
 int main(int argc, char *argv[]){
 	struct sockaddr_in server_addr,client_addr;
 	socklen_t sin_len = sizeof(client_addr);
@@ -192,6 +197,8 @@ int main(int argc, char *argv[]){
 	char buf[2048];
 	int fdimg;
 	int on = 1;
+
+	struct sigaction sa;
 
 	fd_server = socket(AF_INET,SOCK_STREAM,0);
 	if(fd_server < 0){
@@ -216,6 +223,12 @@ int main(int argc, char *argv[]){
 		close(fd_server);
 		exit(1);
 	}
+
+	sa.sa_handler = sigchld_handler;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = SA_RESTART;
+	sigaction(SIGCHLD, &sa,NULL);
+	signal(SIGCLD, SIG_IGN);
 
 	while(1){
 		fd_client = accept(fd_server, (struct sockaddr *) &client_addr,&sin_len);
